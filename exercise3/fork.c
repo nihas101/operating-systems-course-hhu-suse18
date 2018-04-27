@@ -8,6 +8,9 @@
 
 #define MATRIX_SIZE 500
 
+#define ERROR -1
+#define CHILD_PROCESS 0
+
 long long* createMatrix(void);
 void multiplyMatricesTimed(long long *matrixA, long long *matrixB, long long *matrixC);
 void fork_error(void);
@@ -38,10 +41,10 @@ void multiplyMatricesTimed(long long *matrixA, long long *matrixB, long long *ma
   pid_t child_process_id;
 
   switch (child_process_id = fork()) {
-    case -1:
+    case ERROR:
       fork_error();
       break;
-    case 0: // Child process
+    case CHILD_PROCESS:
       multiplyMatrices(matrixA, matrixB, matrixC, MATRIX_SIZE, MATRIX_SIZE, MATRIX_SIZE);
       break;
     default: // Parent process

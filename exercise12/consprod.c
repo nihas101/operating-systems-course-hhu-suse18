@@ -13,18 +13,19 @@ typedef struct arguments{
 
 sem_t mutex;
 
-pthread_t* create_producer_threads(argument_t *arguments, int nr_of_producers);
-pthread_t* create_consumer_threads(argument_t *arguments, int nr_of_consumers);
+void join_threads(pthread_t* threads, int nr_of_threads);
+pthread_t* create_threads(argument_t *arguments, int nr_of_threads, void *function(void *args));
 void *produce(void *arguments);
 void *consume(void *arguments);
 
 int main(int argc, char const *argv[]) {
   if(argc < 4){
     perror("Please provide the number of producers, consumers and the number of items to produce.\n");
-    perror("Example: consprod 4 2 10000\n");
+    perror("Example: consprod 4 2 9000\n");
     exit(EXIT_FAILURE);
   }
 
+  // SETUP
   pthread_t *prod_threads;
   pthread_t *cons_threads;
 
@@ -40,27 +41,19 @@ int main(int argc, char const *argv[]) {
     perror("main: Failed to allocate enough memory.\n");
     exit(EXIT_FAILURE);
   }
+
   arguments->queue = queue;
   arguments->nr_of_items_per_cons = atoi(argv[3])/nr_of_consumers;
   arguments->nr_of_items_per_prod = atoi(argv[3])/nr_of_producers;
 
-  cons_threads = (pthread_t *) create_consumer_threads(arguments, nr_of_consumers);
-  prod_threads = (pthread_t *) create_producer_threads(arguments, nr_of_producers);
+  // THREAD EXECUTION
+  cons_threads = (pthread_t *) create_threads(arguments, nr_of_consumers, consume);
+  prod_threads = (pthread_t *) create_threads(arguments, nr_of_producers, produce);
 
-  for(int i=0; i < nr_of_producers; i++){
-    if(pthread_join(prod_threads[i], NULL) < 0) {
-      perror("An error occured trying to join the producer threads.\n");
-      exit(EXIT_FAILURE);
-    }
-  }
+  join_threads(cons_threads, nr_of_consumers);
+  join_threads(prod_threads, nr_of_producers);
 
-  for(int i=0; i < nr_of_consumers; i++){
-    if(pthread_join(cons_threads[i], NULL) < 0) {
-      perror("An error occured trying to join the producer threads.\n");
-      exit(EXIT_FAILURE);
-    }
-  }
-
+  // CLEANUP
   sem_destroy(&mutex);
   free(cons_threads);
   free(prod_threads);
@@ -70,15 +63,24 @@ int main(int argc, char const *argv[]) {
   return 0;
 }
 
-pthread_t* create_consumer_threads(argument_t *arguments, int nr_of_consumers){
-  pthread_t *threads = malloc(sizeof(pthread_t)*nr_of_consumers);
+void join_threads(pthread_t* threads, int nr_of_threads){
+  for(int i=0; i < nr_of_threads; i++){
+    if(pthread_join(threads[i], NULL) < 0) {
+      perror("An error occured trying to join the producer threads.\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
+pthread_t* create_threads(argument_t *arguments, int nr_of_threads, void *func(void *args)){
+  pthread_t *threads = malloc(sizeof(pthread_t)*nr_of_threads);
   if(threads == NULL){
-    perror("create_consumer_threads: Failed to allocate enough memory.\n");
+    perror("create_threads: Failed to allocate enough memory.\n");
     exit(EXIT_FAILURE);
   }
 
-  for(int i=0; i < nr_of_consumers; i++){
-    if(pthread_create(&(threads[i]), NULL, consume, arguments) < 0){
+  for(int i=0; i < nr_of_threads; i++){
+    if(pthread_create(&(threads[i]), NULL, func, arguments) < 0){
       perror("An error occured trying to create the consumer threads.\n");
       exit(EXIT_FAILURE);
     }
@@ -103,23 +105,6 @@ void *consume(void *args){
   }
 
   return NULL;
-}
-
-pthread_t* create_producer_threads(argument_t *arguments, int nr_of_producers){
-    pthread_t *threads = malloc(sizeof(pthread_t)*nr_of_producers);
-    if(threads == NULL){
-      perror("create_producer_threads: Failed to allocate enough memory.\n");
-      exit(EXIT_FAILURE);
-    }
-
-    for(int i=0; i < nr_of_producers; i++){
-      if(pthread_create(&(threads[i]), NULL, produce, arguments) < 0){
-        perror("An error occured trying to create the producer threads.\n");
-        exit(EXIT_FAILURE);
-      }
-    }
-
-    return threads;
 }
 
 void *produce(void *args){

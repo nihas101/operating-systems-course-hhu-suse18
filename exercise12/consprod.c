@@ -12,6 +12,7 @@ typedef struct arguments{
 } argument_t;
 
 sem_t mutex;
+sem_t filled;
 
 void join_threads(pthread_t* threads, int nr_of_threads);
 pthread_t* create_threads(argument_t *arguments, int nr_of_threads, void *function(void *args));
@@ -35,6 +36,7 @@ int main(int argc, char const *argv[]) {
   queue_t *queue = queue_new(100);
 
   sem_init(&mutex, 0, 1);
+  sem_init(&filled, 0, 0);
 
   argument_t *arguments = malloc(sizeof(argument_t));
   if(arguments == NULL){
@@ -55,6 +57,7 @@ int main(int argc, char const *argv[]) {
 
   // CLEANUP
   sem_destroy(&mutex);
+  sem_destroy(&filled);
   free(cons_threads);
   free(prod_threads);
   free(arguments);
@@ -101,6 +104,7 @@ void *consume(void *args){
     }else{
       i--;
     }
+    sem_post(&filled);
     sem_post(&mutex);
   }
 
@@ -112,8 +116,11 @@ void *produce(void *args){
   int nr_of_items = ((argument_t *) args)->nr_of_items_per_prod;
 
   for(int i=0; i < nr_of_items; i++){
+    sem_wait(&filled);
     sem_wait(&mutex);
-    if(queue_push_back(queue, i) < 0){
+    if(queue_push_back(queue, i) >= 0){
+      queue_print(queue);
+    }else{
       i--;
     }
     sem_post(&mutex);

@@ -111,5 +111,4 @@ void parent_process(key_t key){
   }
 
   free(buffer);
-  shmdt(&shm_data);
 }

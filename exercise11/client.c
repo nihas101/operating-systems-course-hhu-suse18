@@ -31,12 +31,6 @@ int main(int argc, char const *argv[]) {
 
   strcpy(data, argv[3]);
 
-  client = socket(AF_INET, SOCK_STREAM, 0); // TCP/IP
-  if(client < 0){
-    perror("An error occured trying to create a socket.\n");
-    exit(EXIT_FAILURE);
-  }
-
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(port);
   server_addr.sin_addr.s_addr = inet_addr(argv[1]);
